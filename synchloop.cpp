@@ -114,7 +114,7 @@ void SynchLoop::loadGazeData(QString file_name){
     int i=0;
     while(!stream.atEnd()){
         line=readLine(&stream);
-        QStringList parts=line.split(" ");
+        QStringList parts=line.split(",");
         if(mode=="split" && parts.size()!=8){
             qDebug()<<"Invalid file format for gaze data";
             return;
@@ -392,8 +392,8 @@ void SynchLoop::run_private(){
             int mm=(timestamp-hh*3600*fps)/(60*fps);
             int ss=(timestamp-hh*3600*fps - mm*60*fps)/fps;
             int fms=timestamp-hh*3600*fps - mm*60*fps - ss*fps;
-            file_with_AOI_stream<<readLine(&fixation_file_stream)<<" "<<AOI<<" "<<QString::number(hh)<<" "
-                               <<QString::number(mm)<<" "<<QString::number(ss)<<" "<<fms<<"\n";
+            file_with_AOI_stream<<readLine(&fixation_file_stream)<<","<<AOI<<","<<QString::number(hh)<<":"
+                               <<QString::number(mm)<<":"<<QString::number(ss)<<":"<<fms<<"\n";
 
         }
     }
@@ -581,7 +581,7 @@ void SynchLoop::run_split_private(){
                 if(fixations.contains(frame_counter)){
                     Q_FOREACH(auto fixation,fixations.values(frame_counter)){
                         //write fixation;
-                        fix_stream<<participant<<" "<<trial<<" "<<condition<<" "<<fixation.first.x()<<" "<<fixation.first.y()<<" "<<frame_counter-framecounter_offset<<" "<<stage<<" "<<"Fixation"<<" "<<fixation.second<<"\n";
+                        fix_stream<<participant<<","<<trial<<","<<condition<<","<<fixation.first.x()<<","<<fixation.first.y()<<","<<frame_counter-framecounter_offset<<","<<stage<<","<<"Fixation"<<","<<fixation.second<<"\n";
                     }
                 }
 
