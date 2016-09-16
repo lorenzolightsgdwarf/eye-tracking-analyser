@@ -3,8 +3,6 @@
         <file>main.qml</file>
         <file>CustomObjPicker.qml</file>
         <file>Main3D.qml</file>
-        <file>test.dae</file>
-        <file>2016-08-16-134117.webm</file>
         <file>main_synch_loop.qml</file>
     </qresource>
 </RCC>

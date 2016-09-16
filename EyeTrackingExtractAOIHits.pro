@@ -32,3 +32,7 @@ HEADERS += \
 
 DISTFILES += \
     Test_tag.dat
+
+#To run LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/chili/opencv-2.4.13/build-linux/install/lib:/home/chili/artoolkit5/lib
+#--video=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/test.avi --participant=Part1 --mode=split --fixation=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/test.txt
+#--video=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part_1_Condition_Hand_Trial_Howe.avi --subs --mode=analyse --fixation=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part_1_Condition_Hand_Trial_Howe.txt

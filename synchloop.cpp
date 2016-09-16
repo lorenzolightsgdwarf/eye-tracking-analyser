@@ -38,7 +38,9 @@ SynchLoop::SynchLoop(QObject *parent) : QObject(parent)
     ar_3d_handle=NULL;
     ar_patt_handle=NULL;
     frame_counter=0;
+    cameraSize=QSize(640,480);
     cameraSize=QSize(1280,960);
+
     projectionMatrix=QMatrix4x4(
                 610, 0., 640/2 ,0,
                 0., 610, 480/2,0,
@@ -51,6 +53,7 @@ SynchLoop::SynchLoop(QObject *parent) : QObject(parent)
                                 0., 0., 1,0.,
                                 0,0,0,1);
 
+
     camera.setProjectionType(Qt3DCore::QCameraLens::FrustumProjection);
     camera.setNearPlane(0.1);
     camera.setFarPlane(10000);
@@ -62,19 +65,21 @@ SynchLoop::SynchLoop(QObject *parent) : QObject(parent)
     camera.setUpVector(QVector3D(0,1,0));
     camera.setViewCenter(QVector3D(0,0,-1));
 
-    write_subtitles=true;
+    write_subtitles=false;
     subtitles_counter=0;
 
     setupCameraParameters();
     setupMarkerParameters();
 
+//    for(int i=0;i<10000;i++)
+//       fixations.insert(i,QPair<QVector2D,int>(QVector2D(640/2,480/2),1));
 
 }
 
 void SynchLoop::setFileVideoFileName(QString video_file_name)
 {
     this->video_file_name=video_file_name;
-    this->eye_events_file_name=eye_events_file_name;
+    //video_capture.open(1);
     video_capture.open(video_file_name.toStdString());
     tot_frame=video_capture.get(CV_CAP_PROP_FRAME_COUNT);
     if(!video_capture.isOpened()){
@@ -95,8 +100,7 @@ void SynchLoop::setFileVideoFileName(QString video_file_name)
 }
 
 void SynchLoop::loadGazeData(QString file_name){
-
-
+    gaze_data_file_name=file_name;
     int fixationGroup=0;
     QString event_type;
     QFile file(file_name);
@@ -107,7 +111,7 @@ void SynchLoop::loadGazeData(QString file_name){
     QTextStream stream(&file);
     //Read line and split
     QString line;
-    line=readLine(&stream);
+    int i=0;
     while(!stream.atEnd()){
         line=readLine(&stream);
         QStringList parts=line.split(" ");
@@ -144,7 +148,6 @@ void SynchLoop::loadGazeData(QString file_name){
         fixations.insert(frame,fixation);
     }
     file.close();
-
 }
 
 void SynchLoop::loadStructure(QString file_name){
@@ -282,10 +285,8 @@ void SynchLoop::run_private(){
     QMatrix3x3 rotMat;
     qreal err;
     QQuaternion openglAlignment=QQuaternion::fromAxisAndAngle(1,0,0,180);
-    QQuaternion tag_facing_alignment=QQuaternion::fromAxisAndAngle(1,0,0,90);
 
     while(video_capture.read(frame)){
-        frame_counter++;
         if(frame_counter%fps==0) emit positionChanged();
         cv::Mat gray_img;
         cv::cvtColor(frame, gray_img, CV_BGR2GRAY,1);
@@ -320,7 +321,7 @@ void SynchLoop::run_private(){
                         for(int j=0;j<3;j++)
                             rotMat(i,j)=o->marker_info->trans[i][j];
 
-                    QQuaternion alignedRotation=openglAlignment*QQuaternion::fromRotationMatrix(rotMat)*tag_facing_alignment;
+                    QQuaternion alignedRotation=openglAlignment*QQuaternion::fromRotationMatrix(rotMat);
                     rotMat=alignedRotation.toRotationMatrix();
 
                     for(int i=0;i<3;i++)
@@ -346,13 +347,11 @@ void SynchLoop::run_private(){
 
                 dist_mesh < dist_structure ? hitAOI=hitAOI_mesh : hitAOI=hitAOI_structure;
 
-                if(!hitAOI.isEmpty()){
-                    qDebug()<<frame_counter<<hitAOI;
-                }
+                fixationsAOI.insert(frame_counter,hitAOI);
             }
         }
         if(write_subtitles){
-            if(frame_counter%fps==0 || frame_counter==1){
+            if(frame_counter%fps==0){
                 subtitles_counter++;
                 double seconds =(double)frame_counter/fps;
                 double int_seconds;
@@ -369,34 +368,68 @@ void SynchLoop::run_private(){
             if(!hitAOI.isEmpty())
                 subtitles_stream<<hitAOI<<";";
         }
+        frame_counter++;
     }
     video_capture.release();
+
+    QFileInfo fixation_file_info(gaze_data_file_name);
+    QString fixation_AOI_file_path=fixation_file_info.absolutePath()+"/"+fixation_file_info.baseName()+"_AOI.txt";
+    QFile fixation_with_AOI(fixation_AOI_file_path);
+    fixation_with_AOI.open(QFile::WriteOnly| QFile::Truncate);
+    QTextStream file_with_AOI_stream(&fixation_with_AOI);
+
+    QFile fixation_file(gaze_data_file_name);
+    fixation_file.open(QFile::ReadOnly);
+    QTextStream fixation_file_stream(&fixation_file);
+
+    auto timestamps=fixationsAOI.keys().toSet().toList();
+    qSort(timestamps.begin(), timestamps.end());
+    int i=0;
+    Q_FOREACH(auto timestamp, timestamps){
+        qDebug()<<timestamp<<fixationsAOI.values(timestamp);
+        Q_FOREACH(auto AOI,fixationsAOI.values(timestamp)){
+            i++;
+            qDebug()<<i<<timestamp;
+            int hh=timestamp/(fps*3600);
+            int mm=(timestamp-hh*3600*fps)/(60*fps);
+            int ss=(timestamp-hh*3600*fps - mm*60*fps)/fps;
+            int fms=timestamp-hh*3600*fps - mm*60*fps - ss*fps;
+            file_with_AOI_stream<<readLine(&fixation_file_stream)<<";"<<AOI<<";"<<QString::number(hh)<<":"
+                               <<QString::number(mm)<<":"<<QString::number(ss)<<":"<<fms<<"\n";
+
+        }
+    }
+
+    file_with_AOI_stream.flush();
+    fixation_with_AOI.close();
+    fixation_file.close();
+
     if(write_subtitles){
         subtitles_stream.flush();
         subtitle_file.close();
 
     }
+    emit done();
 
 }
 
 void SynchLoop::run_split_private(){
 
-    QString participant;
-    int tag_ex_1_cond_hand;
-    int tag_ex_2_cond_hand;
-    int tag_ex_3_cond_hand;
-    int tag_ex_4_cond_hand;
+    int tag_ex_1_cond_hand=1;
+    int tag_ex_2_cond_hand=2;
+    int tag_ex_3_cond_hand=3;
+    int tag_ex_4_cond_hand=4;
 
-    int tag_ex_1_cond_fix;
-    int tag_ex_2_cond_fix;
-    int tag_ex_3_cond_fix;
-    int tag_ex_4_cond_fix;
-
+    int tag_ex_1_cond_fix=5;
+    int tag_ex_2_cond_fix=6;
+    int tag_ex_3_cond_fix=7;
+    int tag_ex_4_cond_fix=8;
 
 
-    int tag_home;
-    int tag_explore;
-    int tag_verify;
+
+    int tag_home=9;
+    int tag_explore=10;
+    int tag_verify=11;
 
 
     QString stage="solving";
@@ -414,11 +447,15 @@ void SynchLoop::run_split_private(){
 
 
     cv::VideoWriter video_writer;
-    video_writer.open("tmp_video.avi",video_capture.get(CV_CAP_PROP_FOURCC),fps,cv::Size(cameraSize.width(),cameraSize.height()));
+    QFileInfo video_file_info(video_file_name);
+    QString tmp_video_file_name=video_file_info.absolutePath()+"/tmp_video.avi";
+    video_writer.open(tmp_video_file_name.toStdString(),CV_FOURCC('X','V','I','D'),fps,cv::Size(cameraSize.width(),cameraSize.height()));
     if(!video_writer.isOpened()){
         qFatal("Cannot open tmp video file");
     }
-    QFile fix_file("tmp_fix.txt");
+    QFileInfo fixation_file_info(gaze_data_file_name);
+    QString tmp_fixation_file_name=fixation_file_info.absolutePath()+"/tmp_fix.txt";
+    QFile fix_file(tmp_fixation_file_name);
     if(!fix_file.open(QFile::WriteOnly|QFile::Truncate)){
         qFatal("Cannot open tmp fixation file");
     }
@@ -426,7 +463,6 @@ void SynchLoop::run_split_private(){
     fix_stream.setDevice(&fix_file);
 
     while(video_capture.read(frame)){
-        frame_counter++;
         if(frame_counter%fps==0) emit positionChanged();
         cv::Mat gray_img;
         cv::cvtColor(frame, gray_img, CV_BGR2GRAY,1);
@@ -452,16 +488,15 @@ void SynchLoop::run_split_private(){
                     if(!writing){
                         condition="Fixed";
                         trial="Howe";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter;
                     }
                 }
                 else if(marker_info[i].idMatrix==tag_ex_2_cond_fix){
                     if(!writing){
-
                         condition="Fixed";
                         trial="Vault";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter;
                     }
                 }
@@ -469,35 +504,35 @@ void SynchLoop::run_split_private(){
                     if(!writing){
                         condition="Fixed";
                         trial="Roof";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter;}
                 }
                 else if(marker_info[i].idMatrix==tag_ex_4_cond_fix){
                     if(!writing){
                         condition="Fixed";
                         trial="Gazebo";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter; }
                 }
                 else if(marker_info[i].idMatrix==tag_ex_1_cond_hand){
                     if(!writing){
                         condition="Hand";
                         trial="Howe";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter; }
                 }
                 else if(marker_info[i].idMatrix==tag_ex_2_cond_hand){
                     if(!writing){
                         condition="Hand";
                         trial="Vault";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter;}
                 }
                 else if(marker_info[i].idMatrix==tag_ex_3_cond_hand){
                     if(!writing){
                         condition="Hand";
                         trial="Roof";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter;}
 
                 }
@@ -505,7 +540,7 @@ void SynchLoop::run_split_private(){
                     if(!writing){
                         condition="Hand";
                         trial="Gazebo";
-                        writing==true;
+                        writing=true;
                         framecounter_offset=frame_counter; }
 
                 }
@@ -515,14 +550,19 @@ void SynchLoop::run_split_private(){
                         video_writer.release();
                         fix_stream.flush();
                         fix_file.close();
-                        QString name_suff="Participant_"+participant+"_Condition_+"+condition+"_Trial_"+trial;
-                        fix_file.rename(name_suff+".txt");
-                        QFile::rename("tmp_video.avi",name_suff+".avi");
-                        video_writer.open("tmp_video.avi",video_capture.get(CV_CAP_PROP_FOURCC),fps,cv::Size(cameraSize.width(),cameraSize.height()));
+                        QString name_suff="Participant_"+participant+"_Condition_"+condition+"_Trial_"+trial;
+                        QFile::remove(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+                        fix_file.rename(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+                        QFile video_file(tmp_video_file_name);
+                        QFile::remove(video_file_info.absolutePath()+"/"+name_suff+".avi");
+                        video_file.rename(video_file_info.absolutePath()+"/"+name_suff+".avi");
+
+                        video_writer.open(tmp_video_file_name.toStdString(),CV_FOURCC('X','V','I','D'),fps,cv::Size(cameraSize.width(),cameraSize.height()));
                         if(!video_writer.isOpened()){
                             qFatal("Cannot open tmp video file");
                         }
-                        fix_file.open(QFile::WriteOnly| QFile::Truncate);
+
+                        fix_file.setFileName(tmp_fixation_file_name);
                         if(!fix_file.open(QFile::WriteOnly|QFile::Truncate)){
                             qFatal("Cannot open tmp fixation file");
                         }
@@ -543,12 +583,13 @@ void SynchLoop::run_split_private(){
                 if(fixations.contains(frame_counter)){
                     Q_FOREACH(auto fixation,fixations.values(frame_counter)){
                         //write fixation;
-                        fix_stream<<participant<<","<<trial<<","<<condition<<","<<fixation.first.x()<<","<<fixation.first.y()<<","<<frame_counter-framecounter_offset<<","<<stage<<","<<"Fixation"<<","<<fixation.second<<"\n";
+                        fix_stream<<participant<<" "<<trial<<" "<<condition<<" "<<fixation.first.x()<<" "<<fixation.first.y()<<" "<<frame_counter-framecounter_offset<<" "<<stage<<" "<<"Fixation"<<" "<<fixation.second<<"\n";
                     }
                 }
 
             }
         }
+        frame_counter++;
     }
     video_capture.release();
     if(writing){
@@ -556,12 +597,15 @@ void SynchLoop::run_split_private(){
         fix_stream.flush();
         fix_file.close();
         QString name_suff="Participant_"+participant+"_Condition_+"+condition+"_Trial_"+trial;
-        fix_file.rename(name_suff+".txt");
-        QFile::rename("tmp_video.avi",name_suff+".avi");
+        QFile::remove(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+        fix_file.rename(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+        QFile video_file(tmp_video_file_name);
+        QFile::remove(video_file_info.absolutePath()+"/"+name_suff+".avi");
+        video_file.rename(video_file_info.absolutePath()+"/"+name_suff+".avi");
     }
+    emit done();
 
 }
-
 
 void SynchLoop::setupCameraParameters()
 {
@@ -717,13 +761,23 @@ QString SynchLoop::select_on_structure(QVector2D mouseXYNormalized,qreal &tnear)
     qreal hitEntity_tnear=DBL_MAX;
     QString hitEntity;
 
-    if(!ar_multimarker_objects.contains("default"))
+    if(!ar_multimarker_objects.contains("default")){
+        tnear=DBL_MAX;
         return "";
+    }
 
     if(!ar_multimarker_objects["default"]->visible)
+    {
+        tnear=DBL_MAX;
         return "";
+    }
 
-    QMatrix4x4 pose= ar_multimarker_objects["default"]->pose;
+
+
+    QMatrix4x4 pose= ar_multimarker_objects["default"]->pose*QMatrix4x4(1,0,0,0,
+                                                                        0,0,-1,0,
+                                                                        0,1,0,0,
+                                                                        0,0,0,1);
     QMatrix4x4 pose_inv= pose.inverted();
 
     Qt3DCore::QRay3D ray_transform(pose_inv*ray.origin(),pose_inv.mapVector(ray.direction()));
@@ -759,10 +813,7 @@ QString SynchLoop::select_on_structure(QVector2D mouseXYNormalized,qreal &tnear)
     return hitEntity;
 }
 
-
-
 QString SynchLoop::select_on_mesh(QVector2D mouseXYNormalized,qreal &tnear){
-
     QVector4D ray_clip(mouseXYNormalized.x(),mouseXYNormalized.y(),-1,1);
     QVector4D ray_eye = camera.projectionMatrix().inverted().map(ray_clip);
     ray_eye.setZ(-1);ray_eye.setW(0);
@@ -801,7 +852,6 @@ QString SynchLoop::select_on_mesh(QVector2D mouseXYNormalized,qreal &tnear){
     tnear=hitEntity_tnear;
     return hitEntity;
 }
-
 
 
 /*Based on http://geomalgorithms.com/a06-_intersect-2.html#intersect3D_RayTriangle%28%29*/

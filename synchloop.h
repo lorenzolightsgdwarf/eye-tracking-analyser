@@ -41,22 +41,28 @@ class SynchLoop : public QObject
     Q_PROPERTY(int position READ position NOTIFY positionChanged)
 public:
     explicit SynchLoop(QObject *parent = 0);
-
     Q_INVOKABLE void loadMesh(QString file_path, QString transform_name);
     Q_INVOKABLE void loadMultiMarkersConfigFile(QString config_name, QString file_path);
-    Q_INVOKABLE void setWrite_subtititles(bool write_subtitles){this->write_subtitles=write_subtitles;}
+    Q_INVOKABLE void setWrite_subtititles(bool write_subtitles){
+        this->write_subtitles=write_subtitles;
+    }
     Q_INVOKABLE void run();
     Q_INVOKABLE void loadGazeData(QString file_name);
     Q_INVOKABLE void setFileVideoFileName(QString video_file_name);
+    Q_INVOKABLE void setMode(QString mode){ this->mode=mode;}
+    Q_INVOKABLE void setParticipant(QString participant){ this->participant=participant;}
+
     int position(){return frame_counter/fps;}
     Q_INVOKABLE void loadStructure(QString file_name);
 signals:
     void positionChanged();
+    void done();
 public slots:
 
 private:
 
-    QString mode="split";
+    QString mode="analyse";
+    QString participant;
 
     bool write_subtitles;
     QFile subtitle_file;
@@ -65,7 +71,7 @@ private:
     int fps=24;
     QSize cameraSize;
 
-    QString video_file_name,eye_events_file_name;
+    QString video_file_name,gaze_data_file_name;
 
     cv::VideoCapture video_capture;
 
@@ -91,6 +97,7 @@ private:
     QHash<QString, QPair<QVector3D,QVector3D> > beams;
 
     QMultiHash<long long, QPair<QVector2D,int>> fixations;
+    QMultiHash<long long, QString> fixationsAOI;
 
     void setupCameraParameters();
     void setupMarkerParameters();
