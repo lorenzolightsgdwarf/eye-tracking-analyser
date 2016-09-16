@@ -8,7 +8,7 @@
 const char separator=',';
 
 /*Utility function to skip comments and new lines in the config file*/
-QString readLine(QTextStream* inputStream){
+QString readLine(QTextStream* inputStream, char separator=separator){
     QString line;
     bool isValid=false;
     do{
@@ -386,16 +386,14 @@ void SynchLoop::run_private(){
     qSort(timestamps.begin(), timestamps.end());
     int i=0;
     Q_FOREACH(auto timestamp, timestamps){
-        qDebug()<<timestamp<<fixationsAOI.values(timestamp);
         Q_FOREACH(auto AOI,fixationsAOI.values(timestamp)){
             i++;
-            qDebug()<<i<<timestamp;
             int hh=timestamp/(fps*3600);
             int mm=(timestamp-hh*3600*fps)/(60*fps);
             int ss=(timestamp-hh*3600*fps - mm*60*fps)/fps;
             int fms=timestamp-hh*3600*fps - mm*60*fps - ss*fps;
-            file_with_AOI_stream<<readLine(&fixation_file_stream)<<";"<<AOI<<";"<<QString::number(hh)<<":"
-                               <<QString::number(mm)<<":"<<QString::number(ss)<<":"<<fms<<"\n";
+            file_with_AOI_stream<<readLine(&fixation_file_stream)<<" "<<AOI<<" "<<QString::number(hh)<<" "
+                               <<QString::number(mm)<<" "<<QString::number(ss)<<" "<<fms<<"\n";
 
         }
     }
