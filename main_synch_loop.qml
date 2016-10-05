@@ -1,10 +1,13 @@
 import QtQuick 2.0
+import QtQuick.Controls 1.4
 import SynchLoop 1.0
 Item {
     visible: true
-    width: 200
-    height: 200
+    width: 1280
+    height: 960
     signal quit()
+    focus: true
+
     Connections{
        target: synchLoop
        onDone:quit()
@@ -28,10 +31,23 @@ Item {
             }
             run();
         }
+        onSuggestionChanged: suggestion_field.text=suggestion
+        onCurrent_frameChanged: {
+            image_current_frame.source=""
+            image_current_frame.source="file:///home/chili/QTProjects/build-EyeTrackingExtractAOIHits-Desktop_Qt_5_6_0_GCC_64bit-Debug/current_frame.png"
+        }
     }
 
-    Column{
+    Image {
+        id:image_current_frame
         anchors.fill: parent
+        fillMode: Image.PreserveAspectFit
+
+    }
+
+
+    Row{
+        anchors.top: parent.top
         anchors.margins: 10
         Text{
             text:"Processing video:"+video_file
@@ -52,6 +68,40 @@ Item {
         running: true
         repeat: false
         onTriggered: synchLoop.start()
+    }
+
+
+
+
+    Row{
+        anchors.bottom: parent.bottom
+        TextField{
+            id:suggestion_field
+            onAccepted: {
+                focus=false
+                parent.focus=true;
+
+            }
+        }
+
+        Text{
+            id:aoi_field
+
+        }
+
+    }
+    Keys.onPressed: {
+        if (event.key == Qt.Key_Return) {
+            aoi_field.text=suggestion_field.text
+            synchLoop.set_User_Value(aoi_field.text);
+            event.accepted = true;
+        }
+        else if (event.key == Qt.Key_Space) {
+            synchLoop.set_User_Value(aoi_field.text);
+            event.accepted = true;
+        }
+
+
     }
 
 
