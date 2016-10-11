@@ -118,36 +118,38 @@ void SynchLoop::loadGazeData(QString file_name){
     while(!stream.atEnd()){
         line=readLine(&stream);
         QStringList parts=line.split(",");
-        if(mode=="split" && parts.size()!=8){
+        if(mode=="split" && parts.size()!=5){
             qDebug()<<"Invalid file format for gaze data";
             return;
         }
-        if(mode=="analyse" && parts.size()!=9){
+        if(mode=="analyse" && parts.size()!=11){
             qDebug()<<"Invalid file format for gaze data";
             return;
         }
-        if(parts[7]!=event_type && parts[7]=="Fixation")
+        if(parts[1]!=event_type && parts[1]=="Visual Intake")
             fixationGroup++;
-        event_type=parts[7];
-        QVector2D pos(parts[3].toDouble(),parts[4].toDouble());
-        QString timestamp=parts[5];
+        event_type=parts[1];
+
+        QVector2D pos(parts[2].toDouble(),parts[3].toDouble());
+        QString timestamp=parts[4];
         QStringList timestamp_parts=timestamp.split(':');
         long long frame;
 
-        if(mode=="split")
+        if(mode=="split"){
             frame=timestamp_parts[0].toInt()*3600*fps+
-                timestamp_parts[1].toInt()*60*fps+
-                timestamp_parts[2].toInt()*fps+
-                timestamp_parts[3].toInt();
+                    timestamp_parts[1].toInt()*60*fps+
+                    timestamp_parts[2].toInt()*fps+
+                    round(timestamp_parts[3].toInt()*(fps/1000.0));
+        }
         else if(mode=="analyse")
-            frame=timestamp.toLongLong();
+            frame=parts[10].toLongLong();
 
-        QPair<QVector2D,int> fixation;
+        QPair<QVector2D,QString> fixation;
         fixation.first=pos;
         if(mode=="split")
-            fixation.second=fixationGroup;
+            fixation.second=line+","+QString::number(fixationGroup);
         else if(mode=="analyse")
-            fixation.second=parts[8].toInt();
+            fixation.second=line;
         fixations.insert(frame,fixation);
     }
     file.close();
@@ -609,7 +611,7 @@ void SynchLoop::run_split_private(){
                 if(fixations.contains(frame_counter)){
                     Q_FOREACH(auto fixation,fixations.values(frame_counter)){
                         //write fixation;
-                        fix_stream<<participant<<","<<trial<<","<<condition<<","<<fixation.first.x()<<","<<fixation.first.y()<<","<<frame_counter-framecounter_offset<<","<<stage<<","<<"Fixation"<<","<<fixation.second<<"\n";
+                        fix_stream<<fixation.second<<participant<<","<<condition<<","<<trial<<","<<stage<<","<<frame_counter-framecounter_offset<<"\n";
                     }
                 }
 

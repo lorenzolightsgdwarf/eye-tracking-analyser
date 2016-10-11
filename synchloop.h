@@ -104,7 +104,7 @@ private:
     QHash<QString,QVector3D> joints;
     QHash<QString, QPair<QVector3D,QVector3D> > beams;
 
-    QMultiHash<long long, QPair<QVector2D,int>> fixations;
+    QMultiHash<long long, QPair<QVector2D,QString>> fixations;
     QMultiHash<long long, QString> fixationsAOI;
 
     void setupCameraParameters();
