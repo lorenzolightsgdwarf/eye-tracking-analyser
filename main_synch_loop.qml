@@ -70,37 +70,32 @@ Item {
         onTriggered: synchLoop.start()
     }
 
-
-
-
     Row{
         anchors.bottom: parent.bottom
+        anchors.margins: 20
+        spacing: 10
         TextField{
             id:suggestion_field
+            focus: true
+            width: 200
             onAccepted: {
-                focus=false
-                parent.focus=true;
-
+                aoi_field.text=suggestion_field.text
             }
         }
-
-        Text{
-            id:aoi_field
-
+        Rectangle{
+            width: 200
+            height: suggestion_field.height
+            Text{
+                id:aoi_field
+                anchors.fill: parent
+                MouseArea{
+                    anchors.fill: parent
+                    onClicked: {
+                        synchLoop.set_User_Value(aoi_field.text);
+                    }
+                }
+            }
         }
-
-    }
-    Keys.onPressed: {
-        if (event.key == Qt.Key_Return) {
-            aoi_field.text=suggestion_field.text
-            synchLoop.set_User_Value(aoi_field.text);
-            event.accepted = true;
-        }
-        else if (event.key == Qt.Key_Space) {
-            synchLoop.set_User_Value(aoi_field.text);
-            event.accepted = true;
-        }
-
 
     }
 
