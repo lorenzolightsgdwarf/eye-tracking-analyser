@@ -51,7 +51,7 @@ public:
     }
     Q_INVOKABLE void run();
     Q_INVOKABLE void loadGazeData(QString file_name);
-    Q_INVOKABLE void setFileVideoFileName(QString video_file_name);
+    Q_INVOKABLE void setFileVideoFileName(QString video_file_name, QString skip_intervals=QString());
     Q_INVOKABLE void setMode(QString mode){ this->mode=mode;}
     Q_INVOKABLE void setParticipant(QString participant){ this->participant=participant;}
     Q_INVOKABLE void set_User_Value(QString user_value){ this->user_value=user_value;wait_condition.wakeAll();}
@@ -82,9 +82,9 @@ private:
     QString video_file_name,gaze_data_file_name;
 
     cv::VideoCapture video_capture;
-
-    long long frame_counter;
-    long long tot_frame;
+    QList<int> skip_frames;
+    int frame_counter;
+    int tot_frame;
 
     ARParamLT* ar_param;
     ARHandle* ar_handle;
@@ -104,8 +104,8 @@ private:
     QHash<QString,QVector3D> joints;
     QHash<QString, QPair<QVector3D,QVector3D> > beams;
 
-    QMultiHash<long long, QPair<QVector2D,QString>> fixations;
-    QMultiHash<long long, QString> fixationsAOI;
+    QMultiHash<int, QPair<QVector2D,QString>> fixations;
+    QMultiHash<int, QString> fixationsAOI;
 
     void setupCameraParameters();
     void setupMarkerParameters();

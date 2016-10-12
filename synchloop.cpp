@@ -77,7 +77,7 @@ SynchLoop::SynchLoop(QObject *parent) : QObject(parent)
 
 }
 
-void SynchLoop::setFileVideoFileName(QString video_file_name)
+void SynchLoop::setFileVideoFileName(QString video_file_name,QString skip_intervals)
 {
     this->video_file_name=video_file_name;
     //video_capture.open(1);
@@ -97,7 +97,23 @@ void SynchLoop::setFileVideoFileName(QString video_file_name)
             write_subtitles=false;
         }
     }
+    if(!skip_intervals.isEmpty()){
+        QStringList intervals=skip_intervals.split(";");
+        Q_FOREACH(QString interval, intervals){
+            QString start=interval.split("-")[0];
+            QString end=interval.split("-")[1];
 
+            QStringList start_parts=start.split(":");
+            QStringList end_parts=end.split(":");
+
+            int start_frame= (start_parts[0].toInt()*3600+start_parts[1].toInt()*60+start_parts[3].toInt())*fps;
+            int end_frame= (end_parts[0].toInt()*3600+end_parts[1].toInt()*60+end_parts[3].toInt())*fps;
+
+            for(int i=start_frame;i<=end_frame;i++){
+                skip_frames.append(i);
+            }
+        }
+    }
 }
 
 void SynchLoop::loadGazeData(QString file_name){
@@ -133,7 +149,7 @@ void SynchLoop::loadGazeData(QString file_name){
         QVector2D pos(parts[2].toDouble(),parts[3].toDouble());
         QString timestamp=parts[4];
         QStringList timestamp_parts=timestamp.split(':');
-        long long frame;
+        int frame;
 
         if(mode=="split"){
             frame=timestamp_parts[0].toInt()*3600*fps+
@@ -142,7 +158,7 @@ void SynchLoop::loadGazeData(QString file_name){
                     round(timestamp_parts[3].toInt()*(fps/1000.0));
         }
         else if(mode=="analyse")
-            frame=parts[10].toLongLong();
+            frame=parts[10].toInt();
 
         QPair<QVector2D,QString> fixation;
         fixation.first=pos;
@@ -271,7 +287,6 @@ void SynchLoop::loadStructure(QString file_name){
 
 }
 
-
 void SynchLoop::run(){
     if(mode=="split")
         QtConcurrent::run(this,&SynchLoop::run_split_private);
@@ -301,6 +316,10 @@ void SynchLoop::run_private(){
     QVector2D prev_gaze(-100,-100);
     while(video_capture.read(frame)){
         if(frame_counter%fps==0) emit positionChanged();
+        if(skip_frames.contains(frame_counter)){
+            frame_counter++;
+            continue;
+        }
         cv::Mat gray_img;
         cv::cvtColor(frame, gray_img, CV_BGR2GRAY,1);
 
@@ -465,7 +484,7 @@ void SynchLoop::run_split_private(){
     QString trial;
 
     bool writing=false;
-    long long framecounter_offset=0;
+    int framecounter_offset=0;
 
     cv::Mat frame;
     AR2VideoBufferT* ar_buffer;
@@ -492,6 +511,10 @@ void SynchLoop::run_split_private(){
 
     while(video_capture.read(frame)){
         if(frame_counter%fps==0) emit positionChanged();
+        if(skip_frames.contains(frame_counter)){
+            frame_counter++;
+            continue;
+        }
         cv::Mat gray_img;
         cv::cvtColor(frame, gray_img, CV_BGR2GRAY,1);
 
@@ -881,7 +904,6 @@ QString SynchLoop::select_on_mesh(QVector2D mouseXYNormalized,qreal &tnear){
     return hitEntity;
 }
 
-
 /*Based on http://geomalgorithms.com/a06-_intersect-2.html#intersect3D_RayTriangle%28%29*/
 bool SynchLoop::checkIntersectionRay_Triangle(const Qt3DCore::QRay3D ray, const QVector<QVector3D> triangle,qreal &tnear){
     if(triangle.size()!=3){qWarning()<<"Triangle doesn't have 3 points!";return false;}
@@ -935,8 +957,7 @@ bool SynchLoop::checkIntersectionRay_Triangle(const Qt3DCore::QRay3D ray, const 
     return 1;                       // I is in T
 }
 
-
-/*bASED ON http://geomalgorithms.com/a07-_distance.html#dist3D_Segment_to_Segment()
+/*BASED ON http://geomalgorithms.com/a07-_distance.html#dist3D_Segment_to_Segment()
     Computes the shortest distance between 2 segmnets and return the distance from p1 of the point on the first segmented
     which is closest to the second segment
 
