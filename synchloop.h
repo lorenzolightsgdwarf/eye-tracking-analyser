@@ -6,6 +6,7 @@
 #include <opencv.hpp>
 #include <QFile>
 #include <QTextStream>
+#include <QQuickImageProvider>
 extern "C"{
 #include <AR/ar.h>
 #include <AR/config.h>
@@ -39,6 +40,8 @@ class SynchLoop : public QObject
 {
     Q_OBJECT
     Q_PROPERTY(int position READ position NOTIFY positionChanged)
+    Q_PROPERTY(QImage current_frame READ current_frame NOTIFY current_frameChanged)
+    Q_PROPERTY(QString suggestion READ suggestion NOTIFY suggestionChanged)
 public:
     explicit SynchLoop(QObject *parent = 0);
     Q_INVOKABLE void loadMesh(QString file_path, QString transform_name);
@@ -48,15 +51,20 @@ public:
     }
     Q_INVOKABLE void run();
     Q_INVOKABLE void loadGazeData(QString file_name);
-    Q_INVOKABLE void setFileVideoFileName(QString video_file_name);
+    Q_INVOKABLE void setFileVideoFileName(QString video_file_name, QString skip_intervals=QString());
     Q_INVOKABLE void setMode(QString mode){ this->mode=mode;}
     Q_INVOKABLE void setParticipant(QString participant){ this->participant=participant;}
+    Q_INVOKABLE void set_User_Value(QString user_value){ this->user_value=user_value;wait_condition.wakeAll();}
 
     int position(){return frame_counter/fps;}
     Q_INVOKABLE void loadStructure(QString file_name);
+    QImage current_frame(){return m_current_frame;}
+    QString suggestion(){return m_suggestion;}
 signals:
     void positionChanged();
     void done();
+    void current_frameChanged();
+    void suggestionChanged();
 public slots:
 
 private:
@@ -74,9 +82,9 @@ private:
     QString video_file_name,gaze_data_file_name;
 
     cv::VideoCapture video_capture;
-
-    long long frame_counter;
-    long long tot_frame;
+    QList<int> skip_frames;
+    int frame_counter;
+    int tot_frame;
 
     ARParamLT* ar_param;
     ARHandle* ar_handle;
@@ -96,8 +104,8 @@ private:
     QHash<QString,QVector3D> joints;
     QHash<QString, QPair<QVector3D,QVector3D> > beams;
 
-    QMultiHash<long long, QPair<QVector2D,int>> fixations;
-    QMultiHash<long long, QString> fixationsAOI;
+    QMultiHash<int, QPair<QVector2D,QString>> fixations;
+    QMultiHash<int, QString> fixationsAOI;
 
     void setupCameraParameters();
     void setupMarkerParameters();
@@ -109,6 +117,12 @@ private:
     QString select_on_mesh(QVector2D mouseXYNormalized, qreal &tnear);
     double distance_segments(QVector3D p1, QVector3D p2, QVector3D s1, QVector3D s2);
     void run_split_private();
+
+    QImage m_current_frame;
+    QMutex frame_mutex;
+    QWaitCondition wait_condition;
+    QString user_value;
+    QString m_suggestion;
 };
 
 #endif // SYNCHLOOP_H

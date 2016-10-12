@@ -12,7 +12,8 @@ SOURCES += main.cpp \
 
 RESOURCES += qml.qrc
 
-LIBS += -lopencv_calib3d -lopencv_highgui -lopencv_imgproc -lopencv_core
+LIBS += -lopencv_calib3d -lopencv_highgui -lopencv_imgproc -lopencv_core -lopencv_video
+
 LIBS += -L/home/chili/artoolkit5/lib  -lz -lAR -lARICP -lARWrapper
 
 INCLUDEPATH += /home/chili/artoolkit5/include /usr/local/include/opencv2
@@ -35,4 +36,4 @@ DISTFILES += \
 
 #To run LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/home/chili/opencv-2.4.13/build-linux/install/lib:/home/chili/artoolkit5/lib
 #--video=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/test.avi --participant=Part1 --mode=split --fixation=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/test.txt
-#--video=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part_1_Condition_Hand_Trial_Howe.avi --subs --mode=analyse --fixation=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part_1_Condition_Hand_Trial_Howe.txt
+#--video=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part1_Condition_Hand_Trial_Howe.avi --subs --mode=analyse --fixation=/home/chili/QTProjects/EyeTrackingExtractAOIHits/Test\ File/Participant_Part1_Condition_Hand_Trial_Howe.txt

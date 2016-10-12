@@ -58,7 +58,7 @@ int main(int argc, char *argv[])
         else if(parts[5]=="Gazebo")
             structure_file="/home/chili/QTProjects/staTIc/Scripts/Gazebo/Gazebo.structure";
         else if (parts[5]=="Roof")
-            structure_file="/home/chili/QTProjects/staTIc/Scripts/Full_roof/Full_roof.structure";
+            structure_file="/home/chili/QTProjects/staTIc/Scripts/Full_Roof/Full_roof.structure";
         if(participant.isEmpty() || structure_file.isEmpty()){
             qDebug()<<"Can't extract participant or structure file";
             return -1;
