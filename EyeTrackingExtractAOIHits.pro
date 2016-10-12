@@ -1,6 +1,6 @@
 TEMPLATE = app
 
-QT += qml quick 3dcore 3drender 3dinput multimedia widgets
+QT += qml quick 3dcore 3drender 3dinput multimedia widgets concurrent
 
 CONFIG += c++11
 
@@ -12,10 +12,10 @@ SOURCES += main.cpp \
 
 RESOURCES += qml.qrc
 
-LIBS += -L/home/chili/opencv-2.4.13/build-linux/install/lib/ -lopencv_calib3d -lopencv_highgui -lopencv_imgproc -lopencv_core
+LIBS += -lopencv_calib3d -lopencv_highgui -lopencv_imgproc -lopencv_core
 LIBS += -L/home/chili/artoolkit5/lib  -lz -lAR -lARICP -lARWrapper
 
-INCLUDEPATH += /home/chili/artoolkit5/include /home/chili/opencv-2.4.13/build-linux/install/include/ /home/chili/opencv-2.4.13/build-linux/install/include/opencv /home/chili/opencv-2.4.13/build-linux/install/include/opencv2
+INCLUDEPATH += /home/chili/artoolkit5/include /usr/local/include/opencv2
 
 
 # Additional import path used to resolve QML modules in Qt Creator's code model
