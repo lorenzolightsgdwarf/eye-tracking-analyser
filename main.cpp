@@ -22,11 +22,32 @@ int main(int argc, char *argv[])
     QCommandLineOption participantOption("participant", "Participant","Participant");
     parser.addOption(participantOption);
 
-    QCommandLineOption mode("mode", "Mode: split/analyse","Mode");
+    QCommandLineOption mode("mode", "Mode: split/analyse/split-manual","Mode");
     parser.addOption(mode);
 
     QCommandLineOption subtitles("subs", "Generate subtitles");
     parser.addOption(subtitles);
+
+    QCommandLineOption skip_intervals("skipIntervals", "Intervals to skip format hh::mm::ss-hh:mm:ss;hh::mm::ss-hh:mm:ss...","Intervals to skip");
+    parser.addOption(skip_intervals);
+
+    QCommandLineOption solvingTime("solvingTime", "hh::mm::ss","solvingTime");
+    parser.addOption(solvingTime);
+
+    QCommandLineOption exploreTime("exploreTime", "hh::mm::ss","exploreTime");
+    parser.addOption(exploreTime);
+
+    QCommandLineOption verifyTime("verifyTime", "hh::mm::ss","verifyTime");
+    parser.addOption(verifyTime);
+
+    QCommandLineOption stopTime("stopTime", "hh::mm::ss","stopTime");
+    parser.addOption(stopTime);
+
+    QCommandLineOption condition("condition", "condition","condition");
+    parser.addOption(condition);
+
+    QCommandLineOption trial("trial", "trial","trial");
+    parser.addOption(trial);
 
     parser.process(app);
 
@@ -34,7 +55,7 @@ int main(int argc, char *argv[])
         qDebug()<<"Missing options";
         return -1;
     }
-    if(parser.value(mode)!="split" && parser.value(mode)!="analyse"){
+    if(parser.value(mode)!="split" && parser.value(mode)!="analyse" && parser.value(mode)!="split-manual"){
         qDebug()<<"Invalid mode";
         return -1;
     }
@@ -90,6 +111,19 @@ int main(int argc, char *argv[])
         view.rootContext()->setContextProperty("enable_subs",true);
     else
         view.rootContext()->setContextProperty("enable_subs",false);
+    if(parser.isSet(skip_intervals))
+        view.rootContext()->setContextProperty("skip_intervals",parser.value(skip_intervals));
+    else
+        view.rootContext()->setContextProperty("skip_intervals","");
+    if(parser.value(mode)=="split-manual"){
+        view.rootContext()->setContextProperty("solvingTime",parser.value(solvingTime));
+        view.rootContext()->setContextProperty("exploreTime",parser.value(exploreTime));
+        view.rootContext()->setContextProperty("verifyTime",parser.value(verifyTime));
+        view.rootContext()->setContextProperty("stopTime",parser.value(stopTime));
+        view.rootContext()->setContextProperty("condition",parser.value(condition));
+        view.rootContext()->setContextProperty("trial",parser.value(trial));
+    }
+
 
     QObject::connect(view.rootObject(), SIGNAL(quit()), qApp, SLOT(quit()));
 

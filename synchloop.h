@@ -55,6 +55,7 @@ public:
     Q_INVOKABLE void setMode(QString mode){ this->mode=mode;}
     Q_INVOKABLE void setParticipant(QString participant){ this->participant=participant;}
     Q_INVOKABLE void set_User_Value(QString user_value){ this->user_value=user_value;wait_condition.wakeAll();}
+    Q_INVOKABLE void setManualProperties(QString solvingTime,QString verifyTime,QString exploreTime,QString stopTime,QString condition,QString trial);
 
     int position(){return frame_counter/fps;}
     Q_INVOKABLE void loadStructure(QString file_name);
@@ -117,12 +118,18 @@ private:
     QString select_on_mesh(QVector2D mouseXYNormalized, qreal &tnear);
     double distance_segments(QVector3D p1, QVector3D p2, QVector3D s1, QVector3D s2);
     void run_split_private();
+    void run_split_manual_private();
 
     QImage m_current_frame;
     QMutex frame_mutex;
     QWaitCondition wait_condition;
     QString user_value;
     QString m_suggestion;
+
+
+    int solving_frame,verify_frame,explore_frame,stop_frame;
+    QString manual_trial,manual_condition;
+
 };
 
 #endif // SYNCHLOOP_H

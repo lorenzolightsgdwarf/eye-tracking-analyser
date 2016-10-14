@@ -21,13 +21,16 @@ Item {
             setWrite_subtititles(enable_subs)//Always before load video
             setParticipant(participant)
             setMode(mode)
-            setFileVideoFileName(video_file)
+            setFileVideoFileName(video_file,skip_intervals)
             loadGazeData(gaze_data_file)
             if(mode=="analyse"){
                 loadStructure(structure_file)
                 loadMultiMarkersConfigFile("default","/home/chili/board_configuration.data")
                 loadMultiMarkersConfigFile("tablet","/home/chili/QTProjects/EyeTrackingExtractAOIHits/tablet_tags.data")
                 loadMesh("/home/chili/QTProjects/EyeTrackingExtractAOIHits/tablet_mesh.obj","tablet")
+            }
+            if(mode=="split-manual"){
+                setManualProperties(solvingTime,verifyTime,exploreTime,stopTime,condition,trial);
             }
             run();
         }

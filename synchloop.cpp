@@ -106,14 +106,32 @@ void SynchLoop::setFileVideoFileName(QString video_file_name,QString skip_interv
             QStringList start_parts=start.split(":");
             QStringList end_parts=end.split(":");
 
-            int start_frame= (start_parts[0].toInt()*3600+start_parts[1].toInt()*60+start_parts[3].toInt())*fps;
-            int end_frame= (end_parts[0].toInt()*3600+end_parts[1].toInt()*60+end_parts[3].toInt())*fps;
+            int start_frame= (start_parts[0].toInt()*3600+start_parts[1].toInt()*60+start_parts[2].toInt())*fps;
+            int end_frame= (end_parts[0].toInt()*3600+end_parts[1].toInt()*60+end_parts[2].toInt())*fps;
 
             for(int i=start_frame;i<=end_frame;i++){
                 skip_frames.append(i);
             }
         }
     }
+}
+
+void SynchLoop::setManualProperties(QString solvingTime, QString verifyTime, QString exploreTime, QString stopTime, QString condition, QString trial)
+{
+    manual_condition=condition;
+    manual_trial=trial;
+    QStringList parts=solvingTime.split(":");
+    solving_frame= (parts[0].toInt()*3600+parts[1].toInt()*60+parts[2].toInt())*fps;
+
+    parts=verifyTime.split(":");
+    verify_frame= (parts[0].toInt()*3600+parts[1].toInt()*60+parts[2].toInt())*fps;
+
+    parts=exploreTime.split(":");
+    explore_frame= (parts[0].toInt()*3600+parts[1].toInt()*60+parts[2].toInt())*fps;
+
+    parts=stopTime.split(":");
+    stop_frame= (parts[0].toInt()*3600+parts[1].toInt()*60+parts[2].toInt())*fps;
+
 }
 
 void SynchLoop::loadGazeData(QString file_name){
@@ -129,12 +147,12 @@ void SynchLoop::loadGazeData(QString file_name){
     //Read line and split
     QString line;
     int i=0;
-    if(mode=="split")
+    if(mode=="split" || mode=="split-manual")
         line=readLine(&stream);
     while(!stream.atEnd()){
         line=readLine(&stream);
         QStringList parts=line.split(",");
-        if(mode=="split" && parts.size()!=5){
+        if((mode=="split" || mode=="split-manual") && parts.size()!=5){
             qDebug()<<"Invalid file format for gaze data";
             return;
         }
@@ -145,13 +163,14 @@ void SynchLoop::loadGazeData(QString file_name){
         if(parts[1]!=event_type && parts[1]=="Visual Intake")
             fixationGroup++;
         event_type=parts[1];
-
+        if(event_type!="Visual Intake")
+            continue;
         QVector2D pos(parts[2].toDouble(),parts[3].toDouble());
         QString timestamp=parts[4];
         QStringList timestamp_parts=timestamp.split(':');
         int frame;
 
-        if(mode=="split"){
+        if(mode=="split" || mode=="split-manual"){
             frame=timestamp_parts[0].toInt()*3600*fps+
                     timestamp_parts[1].toInt()*60*fps+
                     timestamp_parts[2].toInt()*fps+
@@ -166,6 +185,8 @@ void SynchLoop::loadGazeData(QString file_name){
             fixation.second=line+","+QString::number(fixationGroup);
         else if(mode=="analyse")
             fixation.second=line;
+        if(mode=="split-manual")
+            fixation.second=line+","+QString::number(fixationGroup);
         fixations.insert(frame,fixation);
     }
     file.close();
@@ -292,6 +313,8 @@ void SynchLoop::run(){
         QtConcurrent::run(this,&SynchLoop::run_split_private);
     else if(mode=="analyse")
         QtConcurrent::run(this,&SynchLoop::run_private);
+    else if(mode=="split-manual")
+        QtConcurrent::run(this,&SynchLoop::run_split_manual_private);
 
 }
 
@@ -517,7 +540,7 @@ void SynchLoop::run_split_private(){
         }
         cv::Mat gray_img;
         cv::cvtColor(frame, gray_img, CV_BGR2GRAY,1);
-
+        cv::equalizeHist( gray_img, gray_img );
         ar_buffer->buff=gray_img.data;
         ar_buffer->bufPlaneCount=0;
         ar_buffer->bufPlanes=NULL;
@@ -535,7 +558,7 @@ void SynchLoop::run_split_private(){
         if(marker_num>0){
             marker_info=arGetMarker(ar_handle);
             for(int i=0;i<marker_num;i++){
-                if(marker_info[i].idMatrix==tag_ex_1_cond_fix){
+                if(marker_info[i].idMatrix==tag_ex_1_cond_fix && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Fixed";
                         trial="Howe";
@@ -543,7 +566,7 @@ void SynchLoop::run_split_private(){
                         framecounter_offset=frame_counter;
                     }
                 }
-                else if(marker_info[i].idMatrix==tag_ex_2_cond_fix){
+                else if(marker_info[i].idMatrix==tag_ex_2_cond_fix && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Fixed";
                         trial="Vault";
@@ -551,35 +574,35 @@ void SynchLoop::run_split_private(){
                         framecounter_offset=frame_counter;
                     }
                 }
-                else if(marker_info[i].idMatrix==tag_ex_3_cond_fix){
+                else if(marker_info[i].idMatrix==tag_ex_3_cond_fix && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Fixed";
                         trial="Roof";
                         writing=true;
                         framecounter_offset=frame_counter;}
                 }
-                else if(marker_info[i].idMatrix==tag_ex_4_cond_fix){
+                else if(marker_info[i].idMatrix==tag_ex_4_cond_fix && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Fixed";
                         trial="Gazebo";
                         writing=true;
                         framecounter_offset=frame_counter; }
                 }
-                else if(marker_info[i].idMatrix==tag_ex_1_cond_hand){
+                else if(marker_info[i].idMatrix==tag_ex_1_cond_hand && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Hand";
                         trial="Howe";
                         writing=true;
                         framecounter_offset=frame_counter; }
                 }
-                else if(marker_info[i].idMatrix==tag_ex_2_cond_hand){
+                else if(marker_info[i].idMatrix==tag_ex_2_cond_hand && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Hand";
                         trial="Vault";
                         writing=true;
                         framecounter_offset=frame_counter;}
                 }
-                else if(marker_info[i].idMatrix==tag_ex_3_cond_hand){
+                else if(marker_info[i].idMatrix==tag_ex_3_cond_hand && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Hand";
                         trial="Roof";
@@ -587,7 +610,7 @@ void SynchLoop::run_split_private(){
                         framecounter_offset=frame_counter;}
 
                 }
-                else if(marker_info[i].idMatrix==tag_ex_4_cond_hand){
+                else if(marker_info[i].idMatrix==tag_ex_4_cond_hand && marker_info[i].cfMatrix>0.20){
                     if(!writing){
                         condition="Hand";
                         trial="Gazebo";
@@ -595,7 +618,7 @@ void SynchLoop::run_split_private(){
                         framecounter_offset=frame_counter; }
 
                 }
-                else if(marker_info[i].idMatrix==tag_home){
+                else if(marker_info[i].idMatrix==tag_home && marker_info[i].cfMatrix>0.20){
                     //Close the video,close fix file, close
                     if(writing){
                         video_writer.release();
@@ -607,12 +630,10 @@ void SynchLoop::run_split_private(){
                         QFile video_file(tmp_video_file_name);
                         QFile::remove(video_file_info.absolutePath()+"/"+name_suff+".avi");
                         video_file.rename(video_file_info.absolutePath()+"/"+name_suff+".avi");
-
                         video_writer.open(tmp_video_file_name.toStdString(),CV_FOURCC('X','V','I','D'),fps,cv::Size(cameraSize.width(),cameraSize.height()));
                         if(!video_writer.isOpened()){
                             qFatal("Cannot open tmp video file");
                         }
-
                         fix_file.setFileName(tmp_fixation_file_name);
                         if(!fix_file.open(QFile::WriteOnly|QFile::Truncate)){
                             qFatal("Cannot open tmp fixation file");
@@ -624,21 +645,21 @@ void SynchLoop::run_split_private(){
                     }
                     writing=false;
                 }
-                else if(marker_info[i].idMatrix==tag_verify)
+                else if(marker_info[i].idMatrix==tag_verify && marker_info[i].cfMatrix>0.20)
                     stage="verify";
-                else if(marker_info[i].idMatrix==tag_explore)
+                else if(marker_info[i].idMatrix==tag_explore && marker_info[i].cfMatrix>0.20)
                     stage="explore";
             }
-            if(writing){
-                video_writer<<frame;
-                if(fixations.contains(frame_counter)){
-                    Q_FOREACH(auto fixation,fixations.values(frame_counter)){
-                        //write fixation;
-                        fix_stream<<fixation.second<<participant<<","<<condition<<","<<trial<<","<<stage<<","<<frame_counter-framecounter_offset<<"\n";
-                    }
+        }
+        if(writing){
+            video_writer<<frame;
+            if(fixations.contains(frame_counter)){
+                Q_FOREACH(auto fixation,fixations.values(frame_counter)){
+                    //write fixation;
+                    fix_stream<<fixation.second<<","<<participant<<","<<condition<<","<<trial<<","<<stage<<","<<frame_counter-framecounter_offset<<"\n";
                 }
-
             }
+
         }
         frame_counter++;
     }
@@ -647,7 +668,7 @@ void SynchLoop::run_split_private(){
         video_writer.release();
         fix_stream.flush();
         fix_file.close();
-        QString name_suff="Participant_"+participant+"_Condition_+"+condition+"_Trial_"+trial;
+        QString name_suff="Participant_"+participant+"_Condition_"+condition+"_Trial_"+trial;
         QFile::remove(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
         fix_file.rename(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
         QFile video_file(tmp_video_file_name);
@@ -657,6 +678,78 @@ void SynchLoop::run_split_private(){
     emit done();
 
 }
+
+void SynchLoop::run_split_manual_private(){
+
+    QString stage="solving";
+    QString condition=manual_condition;
+    QString trial=manual_trial;
+
+    bool writing=false;
+    int framecounter_offset=0;
+
+    cv::Mat frame;
+
+    cv::VideoWriter video_writer;
+    QFileInfo video_file_info(video_file_name);
+    QString tmp_video_file_name=video_file_info.absolutePath()+"/tmp_video.avi";
+    video_writer.open(tmp_video_file_name.toStdString(),CV_FOURCC('X','V','I','D'),fps,cv::Size(cameraSize.width(),cameraSize.height()));
+    if(!video_writer.isOpened()){
+        qFatal("Cannot open tmp video file");
+    }
+    QFileInfo fixation_file_info(gaze_data_file_name);
+    QString tmp_fixation_file_name=fixation_file_info.absolutePath()+"/tmp_fix.txt";
+    QFile fix_file(tmp_fixation_file_name);
+    if(!fix_file.open(QFile::WriteOnly|QFile::Truncate)){
+        qFatal("Cannot open tmp fixation file");
+    }
+    QTextStream fix_stream;
+    fix_stream.setDevice(&fix_file);
+
+    while(video_capture.read(frame)){
+        if(frame_counter%fps==0) emit positionChanged();
+        if(skip_frames.contains(frame_counter)){
+            frame_counter++;
+            continue;
+        }
+
+        if(frame_counter==solving_frame){
+            writing=true;
+            framecounter_offset=frame_counter;
+            stage="solving";
+        }
+        if(frame_counter==verify_frame)
+            stage="verify";
+        if(frame_counter==explore_frame)
+            stage="explore";
+        if(frame_counter==stop_frame){
+            video_writer.release();
+            fix_stream.flush();
+            fix_file.close();
+            QString name_suff="Participant_"+participant+"_Condition_"+condition+"_Trial_"+trial;
+            QFile::remove(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+            fix_file.rename(fixation_file_info.absolutePath()+"/"+name_suff+".txt");
+            QFile video_file(tmp_video_file_name);
+            QFile::remove(video_file_info.absolutePath()+"/"+name_suff+".avi");
+            video_file.rename(video_file_info.absolutePath()+"/"+name_suff+".avi");
+            writing=false;
+            break;
+        }
+        if(writing){
+            video_writer<<frame;
+            if(fixations.contains(frame_counter)){
+                Q_FOREACH(auto fixation,fixations.values(frame_counter)){
+                    //write fixation;
+                    fix_stream<<fixation.second<<","<<participant<<","<<condition<<","<<trial<<","<<stage<<","<<frame_counter-framecounter_offset<<"\n";
+                }
+            }
+        }
+        frame_counter++;
+    }
+    video_capture.release();
+    emit done();
+}
+
 
 void SynchLoop::setupCameraParameters()
 {
